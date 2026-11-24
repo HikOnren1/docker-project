@@ -45,7 +45,7 @@ jobs:
         run: |
           docker network create mattermost_network 2>/dev/null || true
           
-          docker compose -f ${{ env.COPOSE_FILE }} up -d mattermost-postgres
+          docker compose -f ${{ env.COMPOSE_FILE }} up -d mattermost-postgres
           echo "⏳ Waiting for PostgreSQL to initialize..."
           sleep 15
 
