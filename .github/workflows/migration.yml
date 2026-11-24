@@ -16,7 +16,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. Проверка, выполнялась ли миграция ранее?
       - name: Check Migration Status
         id: check_status
         run: |
@@ -28,7 +27,6 @@ jobs:
             echo "already_migrated=false" >> $GITHUB_OUTPUT
           fi
 
-      # 2. Бэкап MySQL
       - name: Backup Legacy MySQL
         if: steps.check_status.outputs.already_migrated == 'false'
         run: |
@@ -42,15 +40,15 @@ jobs:
             exit 1
           fi
 
-      # 3. Поднятие временного контейнера PostgreSQL для приема данных
       - name: Start Target PostgreSQL
         if: steps.check_status.outputs.already_migrated == 'false'
         run: |
-          docker compose -f ${{ env.COMPOSE_FILE }} up -d mattermost-postgres
+          docker network create mattermost_network 2>/dev/null || true
+          
+          docker compose -f ${{ env.COPOSE_FILE }} up -d mattermost-postgres
           echo "⏳ Waiting for PostgreSQL to initialize..."
           sleep 15
 
-      # 4. миграция данных с помощью pgloader
       - name: Run pgloader (With Schema Drop for Idempotency)
         if: steps.check_status.outputs.already_migrated == 'false'
         run: |
@@ -60,12 +58,10 @@ jobs:
             mysql://root:MM_ROOT_PASSWORD@mattermost-mysql/mattermost \
             postgresql://mmuser:MM_MMUSER_PASSWORD@mattermost-postgres/mattermost
 
-      # 5. Установка маркерного флаг-файла успешной миграции
       - name: Mark Migration as Completed
         if: steps.check_status.outputs.already_migrated == 'false'
         run: touch /home/hik/.mattermost_migration_completed
 
-      # 6. Развертывание обновленного продакшн-стека
       - name: Deploy Upgraded Stack
         run: |
           echo "🚀 Launching Upgraded Mattermost Stack..."
@@ -73,7 +69,6 @@ jobs:
           echo "⏳ Waiting for Mattermost to apply internal database updates..."
           sleep 30
 
-      # 7. Автоматическое тестирование работоспособности и сохранности данных
       - name: Run Health Checks & Verify Data
         run: |
           echo "🧪 Running Smoke Tests..."
