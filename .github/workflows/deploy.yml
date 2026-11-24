@@ -1,0 +1,96 @@
+name: Full Stack Application Deployment Test
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  COMPOSE_PROJECT_NAME: myapp
+
+jobs:
+  deploy-and-test:
+    runs-on: self-hosted                                                                                                                       # 1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env file from secrets
+        run: |
+          echo "Creating .env file from GitHub Secrets..."
+          cat > .env << EOF
+          DB_USER=app
+          DB_PASSWORD=change-me
+          DB_NAME=appdb
+          EOF
+          echo ".env file created successfully"
+          echo "Contents (masked):"
+          cat .env | sed 's/=.*/=***/'                                                                                                       # 3
+
+      - name: Deploy with Docker Compose
+        run: |
+          echo "Starting application stack..."
+          docker compose up -d --build                                                                                                       # 2
+          echo "Waiting for services to start..."
+          sleep 30
+          echo "Checking container status..."
+          docker compose ps
+
+      - name: Verify containers are running
+        run: |
+          if docker compose ps | grep -q "Up"; then
+            echo "✅ All containers are running"
+          else
+            echo "❌ Some containers failed to start"
+            docker compose logs
+            exit 1
+          fi                                                                                                                                 # 2
+
+      - name: Run application tests
+        run: |
+          echo "✅ Running application tests..."
+
+          # Тест 1: Проверка работы приложения и БД
+
+          echo "1. Testing application and database connectivity..."
+          if curl -f http://localhost:8080/; then
+            echo "✅ Web application is healthy"
+          else
+            echo "❌ Web application health check failed"
+            exit 1
+          fi
+
+          API_RESPONSE=$(curl -s http://localhost:8080/api/items)
+          if [ $? -eq 0 ]; then
+            echo "✅ Application database connection working"
+            echo "API response: $API_RESPONSE"
+          else
+            echo "❌ Application database connection failed"
+            exit 1
+          fi                                                                                                                                  # 4
+
+          # Тест 2: Сравнение данных БД и веб-интерфейса
+
+          echo "2. Testing data consistency..."
+          DB_COUNT=$(docker compose exec -T db psql -U app -d appdb -t -c "SELECT COUNT(*) FROM items;" | tr -d ' ' || echo "0")
+          WEB_COUNT=$(curl -s http://localhost:8080/api/items | grep -o '"id"' | wc -l)
+
+          echo "Database count: $DB_COUNT"
+          echo "Web API count: $WEB_COUNT"
+
+          if [ "$DB_COUNT" = "$WEB_COUNT" ]; then
+            echo "✅ Data consistency test passed"
+          else
+            echo "❌ Data consistency test failed"
+            exit 1
+          fi                                                                                                                                   # 4
+      - name: Save artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-artifacts
+          path: |
+            .env
+            docker-compose.log
+          retention-days: 7                                                                                                                    # 3
