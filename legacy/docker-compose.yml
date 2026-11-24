@@ -41,7 +41,7 @@ services:
 networks:
   mattermost_network:
     external: true
-
+    name: mattermost_network
 volumes:
   mattermost_data:
   mattermost_logs:
