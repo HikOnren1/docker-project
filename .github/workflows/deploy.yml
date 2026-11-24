@@ -91,6 +91,6 @@ jobs:
         with:
           name: deployment-artifacts
           path: |
-            .env
-            docker-compose.log
-          retention-days: 7                                                                                                                    # 3
+            ./.env
+          retention-days: 7
+          if-no-files-found: warn                                                                                                                 # 3
