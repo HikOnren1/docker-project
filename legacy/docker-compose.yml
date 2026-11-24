@@ -40,6 +40,7 @@ services:
 
 networks:
   mattermost_network:
+    name: mattermost_network
     driver: bridge
 
 volumes:
