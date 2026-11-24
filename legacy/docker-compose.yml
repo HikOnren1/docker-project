@@ -40,8 +40,7 @@ services:
 
 networks:
   mattermost_network:
-    name: mattermost_network
-    driver: bridge
+    external: true
 
 volumes:
   mattermost_data:
