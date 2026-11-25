@@ -20,9 +20,14 @@ jobs:
         run: |
           echo "Creating .env file from GitHub Secrets..."
           cat > .env << EOF
-          DB_USER=app
-          DB_PASSWORD=change-me
-          DB_NAME=appdb
+          # Database configuration
+          DB_HOST=db
+          DB_PORT=5432
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          # Application configuration
+          HTTP_PORT=8080
           EOF
           echo ".env file created successfully"
           echo "Contents (masked):"
